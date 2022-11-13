@@ -1,7 +1,7 @@
 import WalletConnectProvider from "@walletconnect/web3-provider";
 //import Torus from "@toruslabs/torus-embed"
 import WalletLink from "walletlink";
-import { Alert, Button, Col, Menu, Row, List } from "antd";
+import { Alert, Button, Col, Menu, Row, List,Form,Input } from "antd";
 import "antd/dist/antd.css";
 import React, { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Link, Route, Switch } from "react-router-dom";
@@ -259,10 +259,15 @@ function App(props) {
   // ** keep track of a variable from the contract in the local React state:
   const balanceStaked = useContractReader(readContracts, "Staker", "balances", [address]);
   console.log("💸 balanceStaked:", balanceStaked);
-
+  //** keep track of rewardRatePerBlock :
+  const rewardRatePerSecond = useContractReader(readContracts, "Staker", "rewardRatePerBlock");
+  console.log("💵 Reward Rate:", rewardRatePerSecond);
   // ** 📟 Listen for broadcast events
   const stakeEvents = useEventListener(readContracts, "Staker", "Stake", localProvider, 1);
   console.log("📟 stake events:", stakeEvents);
+  
+  const CalculatedRate = useContractReader(readContracts, "Staker", "getCalculatedIrate");
+  console.log("💵 Reward Rate:", CalculatedRate);
 
   // ** keep track of a variable from the contract in the local React state:
   const timeLeft = useContractReader(readContracts, "Staker", "timeLeft");
@@ -272,12 +277,29 @@ function App(props) {
   const complete = useContractReader(readContracts, "ExampleExternalContract", "completed");
   console.log("✅ complete:", complete);
 
+    // ** keep track of a variable from the contract in the local React state:
+    const claimPeriodLeft = useContractReader(readContracts, "Staker", "ClaimPeriodLeft");
+    console.log("⏳ Claim Period Left:", claimPeriodLeft);
+  
+    const withdrawalTimeLeft = useContractReader(readContracts, "Staker", "WithdrawalTimeLeft");
+    console.log("⏳ Withdrawal Time Left:", withdrawalTimeLeft);
   const exampleExternalContractBalance = useBalance(
     localProvider,
     readContracts && readContracts.ExampleExternalContract ? readContracts.ExampleExternalContract.address : null,
   );
   if (DEBUG) console.log("💵 exampleExternalContractBalance", exampleExternalContractBalance);
-
+  //------------form component
+  const[etherStake,setEtherstake]=useState("");
+  const onFinish = (values) => {
+    console.log('Success:', values);
+    const ether=values.stake
+    setEtherstake(ether)
+    tx(writeContracts.Staker.stake({ value: ethers.utils.parseEther(values.stake) }))
+  };
+  const onFinishFailed = (errorInfo) => {
+    console.log('Failed:', errorInfo);
+  }
+  //-------------form components
   let completeDisplay = "";
   if (complete) {
     completeDisplay = (
@@ -415,7 +437,6 @@ function App(props) {
       </div>
     );
   }
-
   const loadWeb3Modal = useCallback(async () => {
     const provider = await web3Modal.connect();
     setInjectedProvider(new ethers.providers.Web3Provider(provider));
@@ -476,7 +497,11 @@ function App(props) {
         </Button>
       </div>
     );
+    
+    
+   
   }
+ 
 
   return (
     <div className="App">
@@ -515,7 +540,20 @@ function App(props) {
               <div>Staker Contract:</div>
               <Address value={readContracts && readContracts.Staker && readContracts.Staker.address} />
             </div>
+            
+            <div style={{ padding: 8, marginTop: 16 }}>
+                 <div>APY Per Block</div>
+                <Balance balance={rewardRatePerSecond} fontSize={64} /> ETH
+            </div>
+            <div style={{ padding: 8, marginTop: 16, fontWeight: "bold" }}>
+            <div>Claim Period Left:</div>
+                 {claimPeriodLeft && humanizeDuration(claimPeriodLeft.toNumber() * 1000)}
+            </div>
 
+            <div style={{ padding: 8, marginTop: 16, fontWeight: "bold"}}>
+            <div>Withdrawal Period Left:</div>
+             {withdrawalTimeLeft && humanizeDuration(withdrawalTimeLeft.toNumber() * 1000)}
+            </div>
             <div style={{ padding: 8, marginTop: 32 }}>
               <div>Timeleft:</div>
               {timeLeft && humanizeDuration(timeLeft.toNumber() * 1000)}
@@ -554,6 +592,32 @@ function App(props) {
             </div>
 
             <div style={{ padding: 8 }}>
+             <Form
+              name="basic"
+              labelCol={{ span: 11 }}
+              wrapperCol={{ span: 2 }}
+              initialValues={{ remember: true }}
+              onFinish={onFinish}
+              onFinishFailed={onFinishFailed}
+              autoComplete="off">
+             <Form.Item
+                label="stake"
+                 name="stake"
+                 rules={[{ required: true, message: 'Please enter your desired amount of ether !' }]}
+                >
+               <Input />
+              </Form.Item>
+              <Form.Item
+                    wrapperCol={{
+                    offset: 6,
+                     span: 12,
+                  }}
+                   >
+              <Button type="primary" htmlType="submit">
+              🥩 Stake Your ether!
+                 </Button>
+               </Form.Item>
+              </Form>
               <Button
                 type={balanceStaked ? "success" : "primary"}
                 onClick={() => {
@@ -570,7 +634,7 @@ function App(props) {
                 and give you a form to interact with it locally
             */}
 
-            <div style={{ width: 500, margin: "auto", marginTop: 64 }}>
+           {/*  <div style={{ width: 500, margin: "auto", marginTop: 64 }}>
               <div>Stake Events:</div>
               <List
                 dataSource={stakeEvents}
@@ -583,7 +647,7 @@ function App(props) {
                   );
                 }}
               />
-            </div>
+            </div>  */}
 
             {/* uncomment for a second contract:
             <Contract
